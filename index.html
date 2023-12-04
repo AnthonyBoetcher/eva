@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doodle Board with Grid</title>
+  <title>Eva</title>
   <style>
     body {
       margin: 0;
@@ -34,6 +34,25 @@
       z-index: 1000;
       display: flex;
       flex-direction: column;
+    }
+
+    #emojiToolbar {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      z-index: 1000;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      background-color: #fff;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .emoji {
+      font-size: 20px;
+      cursor: move;
     }
 
     .toolbar-button {
@@ -79,6 +98,13 @@
     <button class="toolbar-button" onclick="toggleEraser()">Toggle Eraser (E)</button>
     <button class="toolbar-button" onclick="undo()">Undo (Ctrl + Z)</button>
     <button class="toolbar-button" onclick="addTextInput()">Add Text Input</button>
+  </div>
+  <div id="emojiToolbar">
+    <span class="emoji" draggable="true" ondragstart="drag(event)" onclick="addEmoji('😊')">😊</span>
+    <span class="emoji" draggable="true" ondragstart="drag(event)" onclick="addEmoji('🎉')">🎉</span>
+    <span class="emoji" draggable="true" ondragstart="drag(event)" onclick="addEmoji('❤️')">❤️</span>
+    <span class="emoji" draggable="true" ondragstart="drag(event)" onclick="addEmoji('👍')">👍</span>
+    <!-- Add more emojis as needed -->
   </div>
 
   <script>
@@ -243,6 +269,15 @@
       }
     });
 
+    function addEmoji(emoji) {
+      const canvas = document.getElementById("whiteboard");
+      const context = canvas.getContext("2d");
+
+      context.font = "30px Arial";
+      context.fillStyle = lineColor;
+      context.fillText(emoji, 50, 50); // You can adjust the position
+    }
+
     function addTextInput() {
       const textInput = document.createElement("div");
       textInput.className = "textInput";
@@ -260,7 +295,8 @@
       const deleteButton = document.createElement("button");
       deleteButton.className = "deleteButton";
       deleteButton.innerHTML = "Delete";
-      deleteButton.onclick = function () {
+      deleteButton.onclick = function (e) {
+        e.stopPropagation(); // Prevent the click event from reaching the canvas
         document.body.removeChild(textInput);
       };
       textInput.appendChild(deleteButton);
@@ -299,6 +335,20 @@
     function updateTextContent(textArea) {
       // Do something with the updated text content if needed
       console.log(textArea.value);
+    }
+
+    function drag(e) {
+      e.dataTransfer.setData("text", e.target.innerText);
+    }
+
+    function allowDrop(e) {
+      e.preventDefault();
+    }
+
+    function drop(e) {
+      e.preventDefault();
+      const data = e.dataTransfer.getData("text");
+      addEmoji(data);
     }
   </script>
 </body>
