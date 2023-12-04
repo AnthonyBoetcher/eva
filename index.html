@@ -44,6 +44,28 @@
     #lineWeightSlider {
       width: 100px;
     }
+
+    .textInput {
+      position: absolute;
+      padding: 5px;
+      border: 1px solid #000;
+      resize: both;
+      overflow: hidden;
+      z-index: 1001;
+      cursor: move;
+    }
+
+    .deleteButton {
+      position: absolute;
+      top: 0;
+      right: 0;
+      cursor: pointer;
+      background-color: #ff0000;
+      color: #ffffff;
+      border: none;
+      padding: 3px 5px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -53,9 +75,10 @@
     <span>Line Color: </span>
     <input type="color" id="colorPicker" onchange="changeColor()">
     <span>Line Weight: </span>
-    <input type="range" id="lineWeightSlider" min="2" max="20" value="5" onchange="adjustLineWeight()">
+    <input type="range" id="lineWeightSlider" min="2" max="50" value="5" onchange="adjustLineWeight()">
     <button class="toolbar-button" onclick="toggleEraser()">Toggle Eraser (E)</button>
     <button class="toolbar-button" onclick="undo()">Undo (Ctrl + Z)</button>
+    <button class="toolbar-button" onclick="addTextInput()">Add Text Input</button>
   </div>
 
   <script>
@@ -77,11 +100,11 @@
 
       // Function to draw the grid
       function drawGrid() {
-        const gridSize = 20;
+        const gridSize = 40; // Double the grid size
         gridContext.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
         gridContext.beginPath();
-        gridContext.strokeStyle = "#000";
+        gridContext.strokeStyle = "#d3d3d3"; // Light grey color for grid lines
         gridContext.lineWidth = 0.5;
 
         for (let i = gridSize; i < gridCanvas.width; i += gridSize) {
@@ -187,6 +210,8 @@
           lineWeight += amount;
           if (lineWeight < 2) {
             lineWeight = 2;
+          } else if (lineWeight > 50) {
+            lineWeight = 50;
           }
         } else {
           lineWeight = parseInt(document.getElementById("lineWeightSlider").value);
@@ -217,6 +242,64 @@
         drawGrid(); // Redraw the grid after resizing
       }
     });
+
+    function addTextInput() {
+      const textInput = document.createElement("div");
+      textInput.className = "textInput";
+      textInput.style.left = "50px";
+      textInput.style.top = "50px";
+      const textarea = document.createElement("textarea");
+      textarea.rows = "4";
+      textarea.cols = "20";
+      textarea.addEventListener("input", function () {
+        updateTextContent(textarea);
+      });
+      textInput.appendChild(textarea);
+
+      // Add a delete button
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "deleteButton";
+      deleteButton.innerHTML = "Delete";
+      deleteButton.onclick = function () {
+        document.body.removeChild(textInput);
+      };
+      textInput.appendChild(deleteButton);
+
+      document.body.appendChild(textInput);
+
+      makeDraggable(textInput);
+
+      // Focus on the textarea when it's added
+      textarea.focus();
+    }
+
+    function makeDraggable(element) {
+      let offsetX, offsetY;
+
+      element.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        offsetX = e.clientX - element.getBoundingClientRect().left;
+        offsetY = e.clientY - element.getBoundingClientRect().top;
+
+        function handleDragMove(e) {
+          element.style.left = e.clientX - offsetX + "px";
+          element.style.top = e.clientY - offsetY + "px";
+        }
+
+        function handleDragEnd() {
+          document.removeEventListener("mousemove", handleDragMove);
+          document.removeEventListener("mouseup", handleDragEnd);
+        }
+
+        document.addEventListener("mousemove", handleDragMove);
+        document.addEventListener("mouseup", handleDragEnd);
+      });
+    }
+
+    function updateTextContent(textArea) {
+      // Do something with the updated text content if needed
+      console.log(textArea.value);
+    }
   </script>
 </body>
 </html>
