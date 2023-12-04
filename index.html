@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doodle Board with Eraser</title>
+  <title>Doodle Board with Eraser and Voice Recording</title>
   <style>
     body {
       margin: 0;
@@ -30,6 +30,10 @@
       margin-bottom: 5px;
       cursor: pointer;
     }
+
+    #lineWeightSlider {
+      width: 100px;
+    }
   </style>
 </head>
 <body>
@@ -37,14 +41,19 @@
   <div id="toolbar">
     <span>Line Color: </span>
     <input type="color" id="colorPicker" onchange="changeColor()">
-    <span>Line Weight: <span id="lineWeightIndicator">5</span></span>
+    <span>Line Weight: </span>
+    <input type="range" id="lineWeightSlider" min="2" max="20" value="5" onchange="adjustLineWeight()">
     <button class="toolbar-button" onclick="toggleEraser()">Toggle Eraser (E)</button>
+    <button class="toolbar-button" onclick="startRecording()">Start Recording</button>
+    <button class="toolbar-button" onclick="stopRecording()">Stop Recording</button>
   </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const canvas = document.getElementById("whiteboard");
       const context = canvas.getContext("2d");
+      let mediaRecorder;
+      let recordedChunks = [];
 
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -70,11 +79,15 @@
         } else if (e.key === "c" || e.key === "C") {
           document.getElementById("colorPicker").click();
         }
-        updateLineWeightIndicator();
+        updateLineWeightSlider();
       });
 
       document.getElementById("colorPicker").addEventListener("input", function () {
         changeColor();
+      });
+
+      document.getElementById("lineWeightSlider").addEventListener("input", function () {
+        adjustLineWeight();
       });
 
       function startDrawing(e) {
@@ -117,8 +130,8 @@
         lineColor = document.getElementById("colorPicker").value;
       }
 
-      function updateLineWeightIndicator() {
-        document.getElementById("lineWeightIndicator").textContent = lineWeight;
+      function updateLineWeightSlider() {
+        document.getElementById("lineWeightSlider").value = lineWeight;
       }
 
       function toggleEraser() {
@@ -127,11 +140,43 @@
       }
 
       function adjustLineWeight(amount) {
-        lineWeight += amount;
-        if (lineWeight < 2) {
-          lineWeight = 2;
+        if (amount !== undefined) {
+          lineWeight += amount;
+          if (lineWeight < 2) {
+            lineWeight = 2;
+          }
+        } else {
+          lineWeight = parseInt(document.getElementById("lineWeightSlider").value);
         }
-        updateLineWeightIndicator();
+        updateLineWeightSlider();
+      }
+
+      function startRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(function (stream) {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = function (event) {
+              if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+              }
+            };
+            mediaRecorder.onstop = function () {
+              const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+              const audioUrl = URL.createObjectURL(blob);
+              const audio = new Audio(audioUrl);
+              audio.play();
+            };
+            mediaRecorder.start();
+          })
+          .catch(function (error) {
+            console.error('Error accessing microphone:', error);
+          });
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
       }
     });
   </script>
