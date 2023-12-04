@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doodle Board with Eraser and Voice Recording</title>
+  <title>Doodle Board with Undo</title>
   <style>
     body {
       margin: 0;
@@ -44,24 +44,21 @@
     <span>Line Weight: </span>
     <input type="range" id="lineWeightSlider" min="2" max="20" value="5" onchange="adjustLineWeight()">
     <button class="toolbar-button" onclick="toggleEraser()">Toggle Eraser (E)</button>
-    <button class="toolbar-button" onclick="startRecording()">Start Recording</button>
-    <button class="toolbar-button" onclick="stopRecording()">Stop Recording</button>
+    <button class="toolbar-button" onclick="undo()">Undo (Ctrl + Z)</button>
   </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const canvas = document.getElementById("whiteboard");
       const context = canvas.getContext("2d");
-      let mediaRecorder;
-      let recordedChunks = [];
-
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
+      const undoStack = [];
       let isDrawing = false;
       let isErasing = false;
       let lineWeight = 5;
       let lineColor = "#000";
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
 
       canvas.addEventListener("mousedown", startDrawing);
       canvas.addEventListener("mouseup", stopDrawing);
@@ -78,6 +75,8 @@
           adjustLineWeight(-2);
         } else if (e.key === "c" || e.key === "C") {
           document.getElementById("colorPicker").click();
+        } else if (e.key === "z" && (e.ctrlKey || e.metaKey)) {
+          undo();
         }
         updateLineWeightSlider();
       });
@@ -98,6 +97,7 @@
       function stopDrawing() {
         isDrawing = false;
         context.beginPath();
+        saveDrawingState();
       }
 
       function draw(e) {
@@ -124,6 +124,7 @@
       window.addEventListener("resize", function () {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        redraw();
       });
 
       function changeColor() {
@@ -151,32 +152,25 @@
         updateLineWeightSlider();
       }
 
-      function startRecording() {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(function (stream) {
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = function (event) {
-              if (event.data.size > 0) {
-                recordedChunks.push(event.data);
-              }
-            };
-            mediaRecorder.onstop = function () {
-              const blob = new Blob(recordedChunks, { type: 'audio/wav' });
-              const audioUrl = URL.createObjectURL(blob);
-              const audio = new Audio(audioUrl);
-              audio.play();
-            };
-            mediaRecorder.start();
-          })
-          .catch(function (error) {
-            console.error('Error accessing microphone:', error);
-          });
+      function saveDrawingState() {
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        undoStack.push(imageData);
       }
 
-      function stopRecording() {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
+      function undo() {
+        if (undoStack.length > 1) {
+          undoStack.pop();
+          const previousState = undoStack[undoStack.length - 1];
+          context.putImageData(previousState, 0, 0);
+        } else {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          undoStack.length = 0;
         }
+      }
+
+      function redraw() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        undoStack.forEach(state => context.putImageData(state, 0, 0));
       }
     });
   </script>
