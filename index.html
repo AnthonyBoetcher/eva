@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Eva</title>
+  <title>Doodle Board with Grid</title>
   <style>
     body {
       margin: 0;
@@ -85,6 +85,20 @@
       padding: 3px 5px;
       font-size: 12px;
     }
+
+    #uploadButton {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
+
+    #uploadedContent {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -106,6 +120,8 @@
     <span class="emoji" draggable="true" ondragstart="drag(event)" onclick="addEmoji('👍')">👍</span>
     <!-- Add more emojis as needed -->
   </div>
+  <input type="file" id="uploadButton" onchange="uploadContent(event)" accept="image/*,video/*">
+  <div id="uploadedContent"></div>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -309,29 +325,6 @@
       textarea.focus();
     }
 
-    function makeDraggable(element) {
-      let offsetX, offsetY;
-
-      element.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        offsetX = e.clientX - element.getBoundingClientRect().left;
-        offsetY = e.clientY - element.getBoundingClientRect().top;
-
-        function handleDragMove(e) {
-          element.style.left = e.clientX - offsetX + "px";
-          element.style.top = e.clientY - offsetY + "px";
-        }
-
-        function handleDragEnd() {
-          document.removeEventListener("mousemove", handleDragMove);
-          document.removeEventListener("mouseup", handleDragEnd);
-        }
-
-        document.addEventListener("mousemove", handleDragMove);
-        document.addEventListener("mouseup", handleDragEnd);
-      });
-    }
-
     function updateTextContent(textArea) {
       // Do something with the updated text content if needed
       console.log(textArea.value);
@@ -350,6 +343,57 @@
       const data = e.dataTransfer.getData("text");
       addEmoji(data);
     }
+
+    function uploadContent(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const fileType = file.type.split("/")[0]; // Check if it's an image or video
+        const contentElement = document.getElementById("uploadedContent");
+
+        if (fileType === "image") {
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(file);
+          contentElement.innerHTML = "";
+          contentElement.appendChild(img);
+        } else if (fileType === "video") {
+          const video = document.createElement("video");
+          video.src = URL.createObjectURL(file);
+          video.autoplay = true;
+          video.controls = true;
+          contentElement.innerHTML = "";
+          contentElement.appendChild(video);
+        }
+      }
+    }
+
+    function uploadContent(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const fileType = file.type.split("/")[0]; // Check if it's an image or video
+        const contentElement = document.getElementById("uploadedContent");
+
+        if (fileType === "image") {
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(file);
+          img.className = "draggable";
+          contentElement.innerHTML = "";
+          contentElement.appendChild(img);
+          makeDraggable(img);
+        } else if (fileType === "video") {
+          const video = document.createElement("video");
+          video.src = URL.createObjectURL(file);
+          video.autoplay = true;
+          video.controls = true;
+          video.className = "draggable";
+          contentElement.innerHTML = "";
+          contentElement.appendChild(video);
+          makeDraggable(video);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
   </script>
 </body>
 </html>
