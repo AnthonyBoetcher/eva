@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2210 0 100 100%22><text y=%22.90em%22 font-size=%2290%22>💜</text></svg>">
   <title>Eva8</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
       background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
     }
 
     #whiteboard {
@@ -58,6 +60,8 @@
     .toolbar-button {
       margin-bottom: 5px;
       cursor: pointer;
+      padding: 8px;
+      border-radius: 5px;
     }
 
     #lineWeightSlider {
@@ -84,6 +88,12 @@
       border: none;
       padding: 3px 5px;
       font-size: 12px;
+      display: none;
+    }
+
+    .draggable {
+      position: absolute;
+      cursor: move;
     }
 
     #uploadButton {
@@ -95,10 +105,18 @@
 
     #uploadedContent {
       position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 1000;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      display: flex;
+      /* Allow centering */
+      justify-content: center;
+      /* Center horizontally */
+      align-items: center;
+      /* Center vertically */
     }
+
   </style>
 </head>
 <body>
@@ -109,8 +127,10 @@
     <input type="color" id="colorPicker" onchange="changeColor()">
     <span>Line Weight: </span>
     <input type="range" id="lineWeightSlider" min="2" max="50" value="5" onchange="adjustLineWeight()">
+    <div id="lineWeightDisplay">Line Weight: 5</div>
     <button class="toolbar-button" onclick="toggleEraser()">Toggle Eraser (E)</button>
     <button class="toolbar-button" onclick="undo()">Undo (Ctrl + Z)</button>
+    <button class="toolbar-button" onclick="redo()">Redo (Ctrl + Y)</button>
     <button class="toolbar-button" onclick="addTextInput()">Add Text Input</button>
   </div>
   <div id="emojiToolbar">
@@ -123,13 +143,20 @@
   <input type="file" id="uploadButton" onchange="uploadContent(event)" accept="image/*,video/*">
   <div id="uploadedContent"></div>
 
+  <div id="emojiToolbar">
+    <!-- (Emoji toolbar content will be generated dynamically) -->
+  </div>
+  
   <script>
+
+    
     document.addEventListener("DOMContentLoaded", function () {
       const canvas = document.getElementById("whiteboard");
       const gridCanvas = document.getElementById("grid");
       const context = canvas.getContext("2d");
       const gridContext = gridCanvas.getContext("2d");
       const undoStack = [];
+      const redoStack = [];
       let isDrawing = false;
       let isErasing = false;
       let lineWeight = 5;
@@ -140,6 +167,49 @@
       gridCanvas.width = window.innerWidth;
       gridCanvas.height = window.innerHeight;
 
+      function drag(e) {
+        e.dataTransfer.setData("text", e.target.innerHTML);
+      }
+
+      function showEmojiMenu(e) {
+        e.preventDefault();
+
+        const emojiMenu = document.createElement("div");
+        emojiMenu.className = "emojiMenu";
+        emojiMenu.style.position = "absolute";
+        emojiMenu.style.left = e.clientX + "px";
+        emojiMenu.style.top = e.clientY + "px";
+        emojiMenu.style.zIndex = 1000;
+        emojiMenu.style.background = "#fff";
+        emojiMenu.style.border = "1px solid #ccc";
+        emojiMenu.style.borderRadius = "5px";
+        emojiMenu.style.padding = "5px";
+        emojiMenu.style.display = "flex";
+        emojiMenu.style.flexWrap = "wrap";
+
+        const emojiList = [
+          '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+          '🙂', '🙃', '😉', '😌', '😍', '😘', '😗', '😙', '😚', '😋',
+          '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '😏',
+          '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩'
+          // Add more emojis as needed
+        ];
+
+        emojiList.forEach((emoji) => {
+          const emojiItem = document.createElement("span");
+          emojiItem.className = "emoji";
+          emojiItem.innerHTML = emoji;
+          emojiItem.addEventListener("click", function () {
+            addEmoji(emoji);
+            document.body.removeChild(emojiMenu);
+          });
+          emojiMenu.appendChild(emojiItem);
+        });
+
+        document.body.appendChild(emojiMenu);
+      }
+
+      canvas.addEventListener("contextmenu", showEmojiMenu);
       // Function to draw the grid
       function drawGrid() {
         const gridSize = 40; // Double the grid size
@@ -182,6 +252,8 @@
           document.getElementById("colorPicker").click();
         } else if (e.key === "z" && (e.ctrlKey || e.metaKey)) {
           undo();
+        } else if (e.key === "y" && (e.ctrlKey || e.metaKey)) {
+          redo();
         }
         updateLineWeightSlider();
       });
@@ -240,11 +312,12 @@
 
       function updateLineWeightSlider() {
         document.getElementById("lineWeightSlider").value = lineWeight;
+        document.getElementById("lineWeightDisplay").innerText = `Line Weight: ${lineWeight}`;
       }
 
       function toggleEraser() {
         isErasing = !isErasing;
-        canvas.style.cursor = isErasing ? "url('eraser.png'), auto" : "crosshair";
+        canvas.classList.toggle("eraser", isErasing);
       }
 
       function adjustLineWeight(amount) {
@@ -268,13 +341,22 @@
 
       function undo() {
         if (undoStack.length > 1) {
-          undoStack.pop();
+          const currentState = undoStack.pop();
+          redoStack.push(currentState);
           const previousState = undoStack[undoStack.length - 1];
           context.putImageData(previousState, 0, 0);
         } else {
           context.clearRect(0, 0, canvas.width, canvas.height);
           undoStack.length = 0;
           drawGrid(); // Redraw the grid after clearing
+        }
+      }
+
+      function redo() {
+        if (redoStack.length > 0) {
+          const nextState = redoStack.pop();
+          undoStack.push(nextState);
+          context.putImageData(nextState, 0, 0);
         }
       }
 
@@ -351,49 +433,50 @@
         const contentElement = document.getElementById("uploadedContent");
 
         if (fileType === "image") {
-          const img = document.createElement("img");
-          img.src = URL.createObjectURL(file);
-          contentElement.innerHTML = "";
-          contentElement.appendChild(img);
-        } else if (fileType === "video") {
-          const video = document.createElement("video");
-          video.src = URL.createObjectURL(file);
-          video.autoplay = true;
-          video.controls = true;
-          contentElement.innerHTML = "";
-          contentElement.appendChild(video);
-        }
-      }
-    }
-
-    function uploadContent(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const fileType = file.type.split("/")[0]; // Check if it's an image or video
-        const contentElement = document.getElementById("uploadedContent");
-
-        if (fileType === "image") {
+          contentElement.innerHTML = ""; // Clear previous content
           const img = document.createElement("img");
           img.src = URL.createObjectURL(file);
           img.className = "draggable";
-          contentElement.innerHTML = "";
+          img.style.zIndex = 2; // Set a higher z-index for the uploaded image
+
+          // Add a delete button
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "deleteButton";
+          deleteButton.innerHTML = "Delete";
+          deleteButton.onclick = function () {
+            contentElement.removeChild(img);
+            contentElement.removeChild(deleteButton);
+          };
           contentElement.appendChild(img);
-          makeDraggable(img);
-        } else if (fileType === "video") {
-          const video = document.createElement("video");
-          video.src = URL.createObjectURL(file);
-          video.autoplay = true;
-          video.controls = true;
-          video.className = "draggable";
-          contentElement.innerHTML = "";
-          contentElement.appendChild(video);
-          makeDraggable(video);
+          contentElement.appendChild(deleteButton);
+
+          makeDraggable(contentElement); // Make the entire container draggable
         }
       }
     }
-  </script>
-</body>
-</html>
+
+    function makeDraggable(element) {
+      let offsetX, offsetY;
+
+      element.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        offsetX = e.clientX - element.getBoundingClientRect().left;
+        offsetY = e.clientY - element.getBoundingClientRect().top;
+
+        function handleDragMove(e) {
+          element.style.left = e.clientX - offsetX + "px";
+          element.style.top = e.clientY - offsetY + "px";
+        }
+
+        function handleDragEnd() {
+          document.removeEventListener("mousemove", handleDragMove);
+          document.removeEventListener("mouseup", handleDragEnd);
+        }
+
+        document.addEventListener("mousemove", handleDragMove);
+        document.addEventListener("mouseup", handleDragEnd);
+      });
+    }
   </script>
 </body>
 </html>
